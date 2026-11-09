@@ -1,0 +1,11 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "past",
+  "version": "0.1.0",
+  "description": "Your GitHub Copilot sessions become memory, and every prompt reaches the model with what past.dev recalls for it.",
+  "author": { "name": "past.dev", "url": "https://past.dev" },
+  "homepage": "https://past.dev",
+  "repository": "https://github.com/pastdotdev/copilot-plugin",
+  "license": "MIT",
+  "keywords": ["memory", "recall", "context", "mcp"]
+}

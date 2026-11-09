@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      { "type": "command", "bash": "node \"${PLUGIN_ROOT}/bin/past-hook.mjs\" start", "powershell": "node \"${PLUGIN_ROOT}/bin/past-hook.mjs\" start", "timeoutSec": 8 }
+    ],
+    "userPromptSubmitted": [
+      { "type": "command", "bash": "node \"${PLUGIN_ROOT}/bin/past-hook.mjs\" prompt", "powershell": "node \"${PLUGIN_ROOT}/bin/past-hook.mjs\" prompt", "timeoutSec": 6 }
+    ],
+    "agentStop": [
+      { "type": "command", "bash": "node \"${PLUGIN_ROOT}/bin/past-hook.mjs\" stop", "powershell": "node \"${PLUGIN_ROOT}/bin/past-hook.mjs\" stop", "timeoutSec": 5 }
+    ],
+    "sessionEnd": [
+      { "type": "command", "bash": "node \"${PLUGIN_ROOT}/bin/past-hook.mjs\" end", "powershell": "node \"${PLUGIN_ROOT}/bin/past-hook.mjs\" end", "timeoutSec": 5 }
+    ]
+  }
+}

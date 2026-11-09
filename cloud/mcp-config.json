@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "past": {
+      "type": "http",
+      "url": "https://api.past.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer $COPILOT_MCP_PAST_API_KEY",
+        "X-Past-Identity": "$COPILOT_MCP_PAST_IDENTITY"
+      },
+      "tools": ["recall_memory"]
+    }
+  }
+}
