@@ -37,7 +37,7 @@ const DEFAULT_SITTING_MINUTES = 30;
 const MIN_SITTING_MINUTES = 5;
 const DEFAULT_API_URL = 'https://api.past.dev';
 const MARKER = '=== past · recalled from memory ===';
-const VERSION = '0.1.0';
+const VERSION = '0.1.1';
 
 // ------------------------------------------------------------------------------- GitHub Copilot
 
@@ -261,8 +261,13 @@ function renderSitting(sitting) {
 function sittingsOf(parsed, minutes) {
   const sittings = [];
   for (const turn of parsed.turns) {
-    if (!sittings.length || (turn.role === 'user' && turn.quiet >= minutes * 60000)) {
-      sittings.push({ turns: [], firstAt: turn.at, project: turn.project, branch: turn.branch, cwd: turn.cwd });
+    const open = sittings[sittings.length - 1];
+    // A prompt typed under another connection starts a new sitting: a sitting belongs to one.
+    const moved = turn.role === 'user' && Boolean(open) && turn.connection !== open.connection;
+    if (!open || (turn.role === 'user' && turn.quiet >= minutes * 60000) || moved) {
+      // A sitting that starts on a reply is in the place of the one before it.
+      const connection = turn.role === 'user' ? turn.connection : open && open.connection;
+      sittings.push({ turns: [], firstAt: turn.at, project: turn.project, branch: turn.branch, connection });
     }
     const sitting = sittings[sittings.length - 1];
     sitting.turns.push(turn);
@@ -270,7 +275,6 @@ function sittingsOf(parsed, minutes) {
     if (turn.role === 'user') {
       if (turn.project) sitting.project = turn.project;
       if (turn.branch) sitting.branch = turn.branch;
-      if (turn.cwd) sitting.cwd = turn.cwd;
     }
   }
   return sittings;
@@ -287,6 +291,9 @@ const hashOf = (text) => createHash('sha256').update(text).digest('hex');
  * What sending a session carries now: each sitting rendered, and the ones past.dev does not hold
  * yet. A session keeps the sitting length it was first sent with: a new value in the config applies
  * to the sessions sent after it, and the boundaries of one already in past.dev never move.
+ * `changed` holds the sittings to send; `kept` the ones that differ too but were typed under another
+ * connection, and stay on this machine. So does a sitting journaled before connections were
+ * recorded: it names none, and may have been typed before the machine was connected.
  */
 function planSend(parsed, record, config) {
   const minutes = (record && record.sittingMinutes) || config.sittingMinutes;
@@ -295,7 +302,10 @@ function planSend(parsed, record, config) {
     return { index, sitting, content, hash: hashOf(content), bytes: Buffer.byteLength(content) };
   });
   const known = record && Array.isArray(record.sittings) ? record.sittings : [];
-  return { minutes, sittings, changed: sittings.filter((part) => known[part.index] !== part.hash) };
+  const connection = connectionOf(config);
+  const mine = (part) => part.sitting.connection === connection;
+  const differing = sittings.filter((part) => known[part.index] !== part.hash);
+  return { minutes, sittings, known, changed: differing.filter(mine), kept: differing.filter((part) => !mine(part)) };
 }
 
 const credits = (bytes) => Math.ceil(bytes / 350);
@@ -386,6 +396,11 @@ function replyWhenWritten(path, ms) {
 const sessionFile = (session) => String(session).replace(/[^A-Za-z0-9-]/g, '');
 const journalPath = (session) => join(COPILOT_DIR, `${sessionFile(session)}.jsonl`);
 
+// A fingerprint of the key and address a prompt was typed under, kept beside it in the journal. A
+// sitting is sent with the connection it was typed under and with no other: what a person typed
+// under another project's key stays on this machine.
+const connectionOf = (config) => hashOf(`${config.apiUrl}\n${config.apiKey}`).slice(0, 16);
+
 function appendJournal(session, entry) {
   privateDir(COPILOT_DIR);
   // Appended in one write, created private: a journal holds what a person typed.
@@ -421,11 +436,12 @@ function readJournal(path) {
     if (entry.kind === 'prompt') {
       const quiet = Number.isNaN(last) ? 0 : Math.max(0, at - last);
       place = { project: entry.project || place.project, branch: entry.branch || '', cwd: entry.cwd || place.cwd };
+      const connection = typeof entry.connection === 'string' ? entry.connection : undefined;
       answersSkill = isSynthetic(text);
       asked = text;
       occurrence = seen.get(text) || 0;
       seen.set(text, occurrence + 1);
-      if (text && !answersSkill) turns.push({ role: 'user', at: entry.at, text, quiet, ...place });
+      if (text && !answersSkill) turns.push({ role: 'user', at: entry.at, text, quiet, connection, ...place });
       open = true;
       ended = false;
     } else if (entry.kind === 'reply') {
@@ -622,7 +638,6 @@ async function sendSession(config, session, parsed, plan) {
       client: SOURCE,
       sessionId: session,
       project: part.sitting.project || '',
-      cwd: part.sitting.cwd || '',
       gitBranch: part.sitting.branch || '',
       sitting: part.index + 1,
       turns: part.sitting.turns.length,
@@ -637,8 +652,12 @@ async function sendSession(config, session, parsed, plan) {
     updateState((fresh) => { book(fresh).lastError = lastError; });
     return { error: lastError.status, code };
   }
+  // A sitting kept on this machine keeps the hash it was last sent with, or none: it is not in
+  // past.dev as it is now.
+  const hashes = plan.sittings.map((part) => part.hash);
+  for (const part of plan.kept) hashes[part.index] = plan.known[part.index] || null;
   const record = {
-    sittings: plan.sittings.map((part) => part.hash),
+    sittings: hashes,
     sittingMinutes: plan.minutes,
     sentAt: new Date().toISOString(),
     turns: parsed.turns.length,
@@ -729,9 +748,10 @@ async function modePrompt(config) {
   const prompt = typeof input.prompt === 'string' ? input.prompt : '';
   const place = placeOf(input);
   if (!prompt || denied(config, place.cwd)) return;
-  if (session && config.ingest) {
+  // Nothing is journaled before the machine is connected.
+  if (session && config.ingest && config.apiKey) {
     try {
-      appendJournal(session, { kind: 'prompt', at: new Date().toISOString(), text: prompt, ...place });
+      appendJournal(session, { kind: 'prompt', at: new Date().toISOString(), text: prompt, ...place, connection: connectionOf(config) });
     } catch { /* the prompt still goes through */ }
   }
   // A short prompt ("yes", "go on") carries no query; spending a recall on it returns noise. A prompt
@@ -748,7 +768,7 @@ async function modeStop(config) {
   stampHook();
   const session = sessionOf(input);
   // Only a session whose prompt was recorded: a reply alone is not a conversation.
-  if (!session || !config.ingest || !existsSync(journalPath(session))) return;
+  if (!session || !config.ingest || !config.apiKey || !existsSync(journalPath(session))) return;
   const transcript = transcriptOf(input);
   const text = replyWhenWritten(transcript, 2500);
   try {
@@ -756,7 +776,7 @@ async function modeStop(config) {
     // when the session is sent.
     appendJournal(session, { kind: 'reply', at: new Date().toISOString(), text, transcript });
   } catch { /* nothing to undo */ }
-  if (config.apiKey) ensureSender();
+  ensureSender();
 }
 
 /** The session is over: it is sent now, by a process cut loose from the hook. */
@@ -764,11 +784,11 @@ async function modeEnd(config) {
   const input = await readStdin();
   stampHook();
   const session = sessionOf(input);
-  if (!session || !config.ingest || !existsSync(journalPath(session))) return;
+  if (!session || !config.ingest || !config.apiKey || !existsSync(journalPath(session))) return;
   try {
     appendJournal(session, { kind: 'end', at: new Date().toISOString(), reason: input.reason || '' });
   } catch { /* nothing to undo */ }
-  if (config.apiKey) detach('flush', session);
+  detach('flush', session);
 }
 
 /** Sends one session now, whatever its quiet: what sessionEnd starts. */
@@ -795,7 +815,7 @@ async function modeFlush(argv) {
 
 // Bumped whenever the sender changes: a sender an older version started is replaced, because it is
 // a long-lived process still running the code it was started with.
-const SENDER_VERSION = 1;
+const SENDER_VERSION = 2;
 const SENDER_SLICE_MS = 60000;
 
 function isAlive(pid) {
@@ -1038,6 +1058,8 @@ function when(ms) {
   return `${today ? '' : `${date.toDateString().slice(4, 10)} `}${date.toTimeString().slice(0, 5)}`;
 }
 
+const NOTHING_TO_SEND = 'Nothing to send from that session: it holds no prompt typed under the key this machine is connected with.';
+
 // What would leave the machine, before it leaves: every sitting of a session, priced.
 function modeCut(config, argv) {
   const { target, error } = targetSession(argv);
@@ -1046,14 +1068,18 @@ function modeCut(config, argv) {
   if (!parsed) { console.log('Nothing to send from that session: no prompt typed in it was recorded.'); return; }
   const record = book(loadState()).sessions[target.session];
   const plan = planSend(parsed, record, config);
+  // Sittings that stay on this machine are not shown.
+  const shown = plan.sittings.filter((part) => !plan.kept.includes(part));
+  if (!shown.length) { console.log(NOTHING_TO_SEND); return; }
   // As the sender sees it: a session whose journal has not changed since its send is not sent again.
   if (record && record.sentAt && Date.parse(record.sentAt) >= target.mtime) plan.changed = [];
-  const held = plan.sittings.length - plan.changed.length;
+  const held = shown.length - plan.changed.length;
   const cost = !plan.changed.length
-    ? `${kilobytes(plan.sittings)} KB, all in past.dev`
+    ? `${kilobytes(shown)} KB, all in past.dev`
     : `${kilobytes(plan.changed)} KB to send · about ${creditsOf(plan.changed)} credits` + (held ? ` · ${held} sitting(s) already in past.dev` : '');
-  console.error(`# session ${short(target.session)} · ${parsed.turns.length} turns in ${plan.sittings.length} sitting(s) · ${cost}\n`);
-  console.log(plan.sittings.map((part) => part.content).join('\n'));
+  const turns = shown.reduce((sum, part) => sum + part.sitting.turns.length, 0);
+  console.error(`# session ${short(target.session)} · ${turns} turns in ${shown.length} sitting(s) · ${cost}\n`);
+  console.log(shown.map((part) => part.content).join('\n'));
   let next;
   if (!plan.changed.length) next = 'Already in past.dev, unchanged.';
   else {
@@ -1073,7 +1099,10 @@ async function modeIngest(config, argv) {
   const parsed = readJournal(target.path);
   if (!parsed) { console.log('Nothing to send from that session: no prompt typed in it was recorded.'); return; }
   const plan = planSend(parsed, book(loadState()).sessions[target.session], config);
-  if (!plan.changed.length) { console.log(`Session ${short(target.session)} is already in past.dev, unchanged.`); return; }
+  if (!plan.changed.length) {
+    console.log(plan.kept.length ? NOTHING_TO_SEND : `Session ${short(target.session)} is already in past.dev, unchanged.`);
+    return;
+  }
   const outcome = await sendSession(config, target.session, parsed, plan);
   if (outcome.error) {
     console.log(`past.dev refused the send: ${outcome.error}${outcome.code ? ` ${outcome.code}` : ''}. ${commandOf('status')} has the details.`);

@@ -87,8 +87,16 @@ you resume after it was sent sends its last sitting again, with what was added.
 
 ## What leaves your machine
 
-Your prompts as you typed them, the agent's reply to each, and the project and branch names.
-Nothing else.
+Your prompts as you typed them and the agent's reply to each, with the names of the project's
+folder and its branch, the session's id and the identity you connected with. The folder's path
+stays on your machine. Recall sends queries: one when a session starts, the first 1,000 characters
+of each prompt, and the questions the agent asks `past_recall`. Nothing else.
+
+A session is recorded only once you are connected, and each prompt is sent with the key it was
+typed under, and with no other: nothing typed before you connect is sent, and what was typed under
+one project's key never goes to another project. A session goes on, in a new sitting, from the
+prompt after you connect or change keys. What 0.1.0 recorded before 0.1.1 was installed and had not
+sent yet stays on your machine.
 
 Never sent: tool calls and their output, file contents, diffs, command output, attachments, the
 model's thinking, and anything injected into the session rather than typed by a person. Strings that
@@ -186,8 +194,9 @@ than in the conversation.
 - **The hooks never run in a sandboxed session.** With Copilot's command sandbox on (`--sandbox`
   or `/sandbox enable`), the hooks cannot reach `~/.past` or the network. Run the session without
   it.
-- **The hooks stay silent.** They call `node`. Node 16 or later has to come first on the path
-  Copilot runs them with.
+- **The hooks stay silent.** They need Node 16 or later. On macOS and Linux they look for it on the
+  path Copilot runs them with, then where nvm, Volta, fnm and Homebrew keep it. On Windows, and for
+  the `past_recall` tool everywhere, `node` has to be on that path.
 
 ## Remove it
 
@@ -211,6 +220,7 @@ plugins/past/
   com.github.copilot/hooks/hooks.json   the four hooks
   skills/                           past, /past-connect, /past-status, /past-cut, /past-ingest
   bin/past-hook.mjs                 the whole plugin: one file, Node 16, no dependencies
+  bin/past                          finds Node for the hooks on macOS and Linux
 cloud/
   mcp-config.json                   the cloud agent's MCP configuration
   past-memory.agent.md              a custom agent for the cloud agent
