@@ -14,7 +14,7 @@ GitHub Copilot (Copilot CLI, the GitHub Copilot app)
   mcp.json                              past_recall, served by the same script
   skills/*                              past, and four skills run through ~/.past/copilot/past.mjs
             |
-  bin/past-hook.mjs <mode>
+  bin/past-hook.mjs <mode>              (the hooks on macOS and Linux start it through bin/past)
             |
   session starts    start     writes the launcher; starts the sender; recalls the project's brief
   every prompt      prompt    journals the prompt; recalls; returns the block as additionalContext
@@ -105,6 +105,26 @@ GitHub (the cloud agent, code review)
     keep `past`: the plugin's name, the skills (`/past-status`), the tool (`past_recall`), `~/.past`,
     the key prefix `past_sk_`, the data point ids and the recall block's header,
     `=== past · recalled from memory ===`, which the journal reader drops by that exact text.
+13. **Nothing is journaled before the machine is connected, and a sitting is sent with the
+    connection it was typed under.** The hooks write a journal only once a key is set, and the
+    prompt hook writes a fingerprint of the key and the address beside each prompt (`connection`).
+    A prompt typed under another connection than its sitting's starts a new sitting, and a sitting
+    is sent only while its connection is the one in force, whichever way the send starts
+    (`sessionEnd`, the sender, `ingest`); `cut` does not print the others. So what was typed before
+    connecting, or under one project's key, never goes to another project. A prompt 0.1.0 journaled
+    names no connection, and 0.1.0 journaled before the machine was connected: its sitting is never
+    sent. A sitting 0.1.0 already sent is neither sent again nor changed, and a session resumed
+    after the update goes on in a new sitting. A sitting kept back holds its last hash in the
+    session's record, or `null`. The folder's path stays in the journal, where the skills find
+    this folder's session by it, and is never sent: `metadata.project` is the folder's name.
+    `SENDER_VERSION` went to 2 with it.
+14. **On macOS and Linux the hooks start through `bin/past`.** A hook's shell may not have read the
+    person's profile, and a Node installed with nvm, Volta or fnm is then not on its path: a bare
+    `node` exits 127 and the hook does nothing. `bin/past` finds Node (the path, nvm, Volta, fnm,
+    `/usr/local`, Homebrew) and runs the script; with none it says so on stderr and a hook still
+    exits 0 (rule 1). Only the `bash` commands in `hooks.json` use it. The `powershell` commands
+    and `mcp.json` call `node` directly: Windows has no `sh` to count on, and an MCP server is
+    started without a shell.
 
 ## Beside other past.dev plugins
 
@@ -137,7 +157,7 @@ and everything else of its own in `~/.past/copilot/` and `~/.past/hosts/copilot.
 - `POST /api/v1/ingest/batch`: one item per sitting. `id` gives replacement (`copilot:<session id>`
   for the first sitting, `copilot:<session id>:<n>` for the others), `timestamp` dates every memory
   drawn from the item, `label` names the session (`GitHub Copilot · <project> · <branch>`), and
-  `metadata` carries `sessionId`, `project`, `cwd`, `gitBranch`, `sitting` and `turns`.
+  `metadata` carries `sessionId`, `project`, `gitBranch`, `sitting` and `turns`.
 - `POST /api/v1/recall`: **`identity` is required**. Recall stays off until `/past-connect` sets
   one.
 - `audience` on ingest: a slug; absent means the whole project. `connect --audience` checks it with

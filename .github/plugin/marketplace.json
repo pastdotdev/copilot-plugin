@@ -1,13 +1,13 @@
 {
   "name": "past",
   "owner": { "name": "past.dev", "email": "support@past.dev" },
-  "metadata": { "description": "past.dev for GitHub Copilot", "version": "0.1.0" },
+  "metadata": { "description": "past.dev for GitHub Copilot", "version": "0.1.1" },
   "plugins": [
     {
       "name": "past",
       "source": "./plugins/past",
       "description": "Your GitHub Copilot sessions become memory, and every prompt reaches the model with what past.dev recalls for it.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "license": "MIT",
       "keywords": ["memory", "recall", "context", "mcp"]
     }
