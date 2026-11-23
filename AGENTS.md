@@ -67,6 +67,9 @@ GitHub (the cloud agent, code review)
      over; one younger than ten seconds belongs to a sender still starting.
    - `SENDER_VERSION` is bumped whenever the sender changes: a sender that an older version
      started is replaced, because it is a long-lived process running the code it started with.
+   - `VERSION` is the version in `plugin.json` and in the marketplace file, in every release, one
+     of words alone too: the `User-Agent`, the recall tool's server and the hook stamp name it.
+     0.1.2 left the script at 0.1.1; 0.1.3 names itself.
    - A session whose send failed is left for the next sender run, so a revoked key never keeps a
      process asking.
 5. **Sittings.** A sitting starts at the first prompt after the session was quiet for

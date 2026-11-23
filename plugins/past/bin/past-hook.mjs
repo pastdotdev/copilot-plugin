@@ -37,7 +37,7 @@ const DEFAULT_SITTING_MINUTES = 30;
 const MIN_SITTING_MINUTES = 5;
 const DEFAULT_API_URL = 'https://api.past.dev';
 const MARKER = '=== past · recalled from memory ===';
-const VERSION = '0.1.1';
+const VERSION = '0.1.3';
 
 // ------------------------------------------------------------------------------- GitHub Copilot
 
