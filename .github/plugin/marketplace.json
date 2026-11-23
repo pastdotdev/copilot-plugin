@@ -1,13 +1,13 @@
 {
   "name": "past",
   "owner": { "name": "past.dev", "email": "support@past.dev" },
-  "metadata": { "description": "past.dev for GitHub Copilot", "version": "0.1.2" },
+  "metadata": { "description": "past.dev for GitHub Copilot", "version": "0.1.3" },
   "plugins": [
     {
       "name": "past",
       "source": "./plugins/past",
       "description": "One memory for every teammate and every agent on a project. Your GitHub Copilot sessions go in, and each prompt gets what was decided before, with dated sources.",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "license": "MIT",
       "keywords": ["memory", "recall", "context", "mcp"]
     }
