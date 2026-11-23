@@ -1,7 +1,7 @@
 # past.dev for GitHub Copilot
 
-Your GitHub Copilot sessions become memory, and every prompt reaches the model with what past.dev
-recalls for it. The full guide is the repository's [README](https://github.com/pastdotdev/copilot-plugin#readme).
+One memory for every teammate and every agent on a project. Your GitHub Copilot sessions go in, and
+each prompt gets what was decided before, with dated sources. The full guide is the repository's [README](https://github.com/pastdotdev/copilot-plugin#readme).
 
 ## Configuration
 

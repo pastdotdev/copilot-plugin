@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "past",
-  "version": "0.1.1",
-  "description": "Your GitHub Copilot sessions become memory, and every prompt reaches the model with what past.dev recalls for it.",
+  "version": "0.1.2",
+  "description": "One memory for every teammate and every agent on a project. Your GitHub Copilot sessions go in, and each prompt gets what was decided before, with dated sources.",
   "author": { "name": "past.dev", "url": "https://past.dev" },
   "homepage": "https://past.dev",
   "repository": "https://github.com/pastdotdev/copilot-plugin",
