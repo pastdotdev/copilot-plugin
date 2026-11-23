@@ -1,7 +1,7 @@
 # past.dev for GitHub Copilot
 
-Your GitHub Copilot sessions become memory, and every prompt reaches the model with what past.dev
-recalls for it.
+One memory for every teammate and every agent on a project. Your GitHub Copilot sessions go in, and
+each prompt gets what was decided before, with dated sources.
 
 [past.dev](https://past.dev) is memory for AI agents. This plugin connects GitHub Copilot to a
 past.dev project: what you and the agent say to each other is read into memory as you work, and what matters
